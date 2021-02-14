@@ -3,7 +3,7 @@ package com.example.tickets.domain.enums;
 public enum TicketState {
     CREATED("создан"),
     CALL("вызывается"),
-    SERVED("обслуживатеся"),
+    SERVED("обслуживается"),
     HOLD("отложен"),
     COMPLETE("обслуживание завершено");
 

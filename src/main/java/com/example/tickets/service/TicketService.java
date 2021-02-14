@@ -6,7 +6,7 @@ import com.example.tickets.domain.enums.TicketState;
 import com.example.tickets.domain.model.Ticket;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 @Service
 public class TicketService {
 
-    private Map<Integer,Ticket> tickets;
+    private Map<Integer, Ticket> tickets;
     private List<Integer> busyWindows;
     private List<Ticket> allTickets;
 
@@ -30,65 +30,53 @@ public class TicketService {
         synchronized (TicketService.class) {
 
             Optional<Ticket> optionalTicket = allTickets.stream().max(Comparator.comparing(Ticket::getId));
-
-            if (optionalTicket.isPresent()) {
-
-                Integer id = optionalTicket.get().getId() + 1;
-                ticketDto.setId(id);
-                Ticket ticket = createNewTicketFromTicketDto(ticketDto);
-                tickets.put(id, ticket);
-                allTickets.add(ticket);
-
-            } else {
-
-                ticketDto.setId(1);
-                Ticket ticket = createNewTicketFromTicketDto(ticketDto);
-                allTickets.add(ticket);
-                tickets.put(ticket.getId(), ticket);
-
-            }
+            Integer id = optionalTicket.map(ticket -> ticket.getId() + 1).orElse(1);
+            ticketDto.setId(id);
+            Ticket ticket = createNewTicketFromTicketDto(ticketDto);
+            addToStorage(ticket);
         }
     }
 
     public void updateTicket(TicketDto ticketDto) {
 
-        synchronized (TicketService.class){
+        synchronized (TicketService.class) {
 
-            if (tickets.containsKey(ticketDto.getId())){
+            if (tickets.containsKey(ticketDto.getId())) {
 
                 List<TicketState> allowedStates = getAllowedStates(tickets.get(ticketDto.getId()).getTicketState());
-                if (allowedStates.contains(ticketDto.getTicketState())){
+                if (allowedStates.contains(ticketDto.getTicketState())) {
 
-                    if(isTicketDtoValidForStateChanging(tickets.get(ticketDto.getId()), ticketDto)){
+                    if (isTicketDtoValidForStateChanging(tickets.get(ticketDto.getId()), ticketDto)) {
 
                         Ticket ticket = createUpdatedTicketFromTicketAndTicketDto(tickets.get(ticketDto.getId()), ticketDto);
-                        if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState()) ){
+                        if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState())) {
                             busyWindows.add(ticket.getWindowNumber());
-                        } else if (Arrays.asList(TicketState.HOLD, TicketState.COMPLETE).contains(ticketDto.getTicketState())){
+                        } else if (Arrays.asList(TicketState.HOLD, TicketState.COMPLETE).contains(ticketDto.getTicketState())) {
                             busyWindows.remove(ticket.getWindowNumber());
                         }
                         allTickets.remove(tickets.get(ticketDto.getId()));
                         tickets.remove(ticketDto.getId());
-                        allTickets.add(ticket);
-                        tickets.put(ticket.getId(),ticket);
+                        addToStorage(ticket);
 
                     } else {
-                        throw new HttpClientErrorException(HttpStatus.CONFLICT);
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Окно номер " + ticketDto.getWindowNum() + " занято!");
                     }
 
                 } else {
-                    throw new HttpClientErrorException(HttpStatus.BAD_REQUEST);
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Вы не можете перевести талон из статуса " +
+                            tickets.get(ticketDto.getId()).getTicketState().getName() +
+                            " в статус " + ticketDto.getTicketState().getName() + "!");
                 }
 
             } else {
-                throw new HttpClientErrorException(HttpStatus.NOT_FOUND);
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Талон с идентификатором " + ticketDto.getId() + " не найден!");
             }
         }
     }
 
     public List<Ticket> getTickets() {
 
-        synchronized (TicketService.class){
+        synchronized (TicketService.class) {
             return allTickets.stream().sorted(Comparator.comparing(Ticket::getCratedDate)).collect(Collectors.toList());
         }
 
@@ -96,21 +84,21 @@ public class TicketService {
 
     public Ticket getTicketById(Integer id) {
 
-        synchronized (TicketService.class){
+        synchronized (TicketService.class) {
 
-            if (tickets.containsKey(id)){
+            if (tickets.containsKey(id)) {
                 return tickets.get(id);
             } else {
-                throw new HttpClientErrorException(HttpStatus.NOT_FOUND);
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Талон с идентификатором " + id + " не найден!");
             }
 
         }
     }
 
-    public void removeTicketById(Integer id){
+    public void removeTicketById(Integer id) {
 
-        synchronized (TicketService.class){
-            if (tickets.containsKey(id)){
+        synchronized (TicketService.class) {
+            if (tickets.containsKey(id)) {
 
                 Ticket ticket = tickets.get(id);
                 busyWindows.remove(ticket.getWindowNumber());
@@ -118,14 +106,13 @@ public class TicketService {
                 allTickets.remove(ticket);
 
             } else {
-                throw new HttpClientErrorException(HttpStatus.NOT_FOUND);
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Талон с идентификатором " + id + " не найден!");
             }
         }
 
     }
 
-
-    private Ticket createNewTicketFromTicketDto(TicketDto ticketDto){
+    private Ticket createNewTicketFromTicketDto(TicketDto ticketDto) {
         Ticket ticket = new Ticket(ticketDto.getId(), LocalDateTime.now());
         ticket.setModifiedDate(LocalDateTime.now());
         ticket.setTicketState(TicketState.CREATED);
@@ -133,43 +120,48 @@ public class TicketService {
         return ticket;
     }
 
-    private Ticket createUpdatedTicketFromTicketAndTicketDto(Ticket ticket, TicketDto ticketDto){
+    private Ticket createUpdatedTicketFromTicketAndTicketDto(Ticket ticket, TicketDto ticketDto) {
 
-        synchronized (TicketService.class){
-
-            Ticket updatedTicket = new Ticket(ticketDto.getId(), ticket.getCratedDate());
-            if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState()) ){
-                updatedTicket.setWindowNumber(ticketDto.getWindowNum());
-            }
-            updatedTicket.setTicketTheme(ticketDto.getTicketTheme());
-            updatedTicket.setTicketState(ticketDto.getTicketState());
-            updatedTicket.setModifiedDate(LocalDateTime.now());
-            return updatedTicket;
+        Ticket updatedTicket = new Ticket(ticketDto.getId(), ticket.getCratedDate());
+        if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState())) {
+            updatedTicket.setWindowNumber(ticketDto.getWindowNum());
         }
+        updatedTicket.setTicketTheme(ticketDto.getTicketTheme());
+        updatedTicket.setTicketState(ticketDto.getTicketState());
+        updatedTicket.setModifiedDate(LocalDateTime.now());
+        return updatedTicket;
     }
 
-    private List<TicketState> getAllowedStates(TicketState ticketState){
+    private List<TicketState> getAllowedStates(TicketState ticketState) {
         List<TicketState> allowedStates = new ArrayList<>();
-        switch (ticketState){
-            case CREATED :
+        switch (ticketState) {
+            case CREATED:
             case HOLD:
                 allowedStates.addAll(Collections.singletonList(TicketState.CALL));
-            break;
-            case CALL: allowedStates.addAll(Collections.singletonList(TicketState.SERVED));
-            break;
-            case SERVED: allowedStates.addAll(Collections.singletonList(TicketState.HOLD));
-            break;
+                break;
+            case CALL:
+                allowedStates.addAll(Collections.singletonList(TicketState.SERVED));
+                break;
+            case SERVED:
+                allowedStates.addAll(Collections.singletonList(TicketState.HOLD));
+                break;
             default:
         }
         return allowedStates;
     }
 
-    private Boolean isTicketDtoValidForStateChanging(Ticket ticket, TicketDto ticketDto){
-        if ( Arrays.asList(TicketState.CALL,TicketState.SERVED).contains(ticketDto.getTicketState()) && ticket.getWindowNumber() != null && !busyWindows.contains(ticketDto.getWindowNum())){
+    private Boolean isTicketDtoValidForStateChanging(Ticket ticket, TicketDto ticketDto) {
+
+        if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState()) && ticket.getWindowNumber() != null && !busyWindows.contains(ticketDto.getWindowNum())) {
             return true;
         } else {
             return false;
         }
+    }
+
+    private void addToStorage(Ticket ticket) {
+        tickets.put(ticket.getId(), ticket);
+        allTickets.add(ticket);
     }
 
 
