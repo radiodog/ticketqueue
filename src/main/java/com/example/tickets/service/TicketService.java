@@ -27,6 +27,10 @@ public class TicketService {
 
     public void addTicket(TicketDto ticketDto) {
 
+        if (ticketDto == null){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Тело запроса не может быть пустым!");
+        }
+
         synchronized (TicketService.class) {
 
             Optional<Ticket> optionalTicket = allTickets.stream().max(Comparator.comparing(Ticket::getId));
@@ -38,6 +42,10 @@ public class TicketService {
     }
 
     public void updateTicket(TicketDto ticketDto) {
+
+        if (ticketDto == null){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Тело запроса не может быть пустым!");
+        }
 
         synchronized (TicketService.class) {
 
@@ -84,6 +92,10 @@ public class TicketService {
 
     public Ticket getTicketById(Integer id) {
 
+        if (id == null){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Идентификатор не может быть пустым!");
+        }
+
         synchronized (TicketService.class) {
 
             if (tickets.containsKey(id)) {
@@ -96,6 +108,10 @@ public class TicketService {
     }
 
     public void removeTicketById(Integer id) {
+
+        if (id == null){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Идентификатор не может быть пустым!");
+        }
 
         synchronized (TicketService.class) {
             if (tickets.containsKey(id)) {
