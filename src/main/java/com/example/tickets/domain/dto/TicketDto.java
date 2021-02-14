@@ -12,6 +12,6 @@ public class TicketDto {
     private Integer id;
     private TicketTheme ticketTheme;
     private TicketState ticketState;
-    private Integer windowNum;
+    private Integer windowNumber;
 
 }
