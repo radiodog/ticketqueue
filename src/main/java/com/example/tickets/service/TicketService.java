@@ -54,27 +54,26 @@ public class TicketService {
                 List<TicketState> allowedStates = getAllowedStates(tickets.get(ticketDto.getId()).getTicketState());
                 if (allowedStates.contains(ticketDto.getTicketState())) {
 
-                    if (isTicketDtoValidForStateChanging(tickets.get(ticketDto.getId()), ticketDto)) {
-                        if (isWindowFree(ticketDto)){
+                    Ticket ticket = createUpdatedTicketFromTicketAndTicketDto(tickets.get(ticketDto.getId()), ticketDto);
+                    if (TicketState.CALL.equals(ticketDto.getTicketState())) {
 
-                            Ticket ticket = createUpdatedTicketFromTicketAndTicketDto(tickets.get(ticketDto.getId()), ticketDto);
-                            if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState())) {
-                                busyWindows.add(ticket.getWindowNumber());
-                            } else if (Arrays.asList(TicketState.HOLD, TicketState.COMPLETE).contains(ticketDto.getTicketState())) {
-                                busyWindows.remove(ticket.getWindowNumber());
-                            }
-                            allTickets.remove(tickets.get(ticketDto.getId()));
-                            tickets.remove(ticketDto.getId());
-                            addToStorage(ticket);
-
-                        } else {
-                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Окно номер " + ticketDto.getWindowNumber() + " занято!");
+                        if (ticketDto.getWindowNumber() == null) {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT, "Номер окна не заполнен!");
                         }
 
+                        if (busyWindows.contains(ticketDto.getWindowNumber())){
+                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Окно номер " + ticketDto.getWindowNumber() + " занято!");
+                        } else {
+                            busyWindows.add(ticket.getWindowNumber());
+                        }
 
-                    } else {
-                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Номер окна не заполнен!");
+                    } else if (Arrays.asList(TicketState.HOLD, TicketState.COMPLETE).contains(ticketDto.getTicketState())) {
+                        busyWindows.remove(tickets.get(ticketDto.getId()).getWindowNumber());
                     }
+
+                    allTickets.remove(tickets.get(ticketDto.getId()));
+                    tickets.remove(ticketDto.getId());
+                    addToStorage(ticket);
 
                 } else {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Вы не можете перевести талон из статуса " +
@@ -146,8 +145,10 @@ public class TicketService {
         Ticket updatedTicket = new Ticket(ticketDto.getId(), ticket.getCreatedDate());
         if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState())) {
             updatedTicket.setWindowNumber(ticketDto.getWindowNumber());
+        } else {
+            updatedTicket.setWindowNumber(null);
         }
-        updatedTicket.setTicketTheme(ticketDto.getTicketTheme());
+        updatedTicket.setTicketTheme(ticket.getTicketTheme());
         updatedTicket.setTicketState(ticketDto.getTicketState());
         updatedTicket.setModifiedDate(LocalDateTime.now());
         return updatedTicket;
@@ -164,27 +165,14 @@ public class TicketService {
                 allowedStates.addAll(Collections.singletonList(TicketState.SERVED));
                 break;
             case SERVED:
-                allowedStates.addAll(Collections.singletonList(TicketState.HOLD));
+                allowedStates.addAll(Arrays.asList(TicketState.HOLD, TicketState.COMPLETE));
                 break;
             default:
         }
         return allowedStates;
     }
 
-    private Boolean isTicketDtoValidForStateChanging(Ticket ticket, TicketDto ticketDto) {
-
-        if (Arrays.asList(TicketState.CALL, TicketState.SERVED).contains(ticketDto.getTicketState()) && ticketDto.getWindowNumber() != null ) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    private Boolean isWindowFree(TicketDto ticketDto){
-        return !busyWindows.contains(ticketDto.getWindowNumber());
-    }
-
-    private void addToStorage(Ticket ticket) {
+     private void addToStorage(Ticket ticket) {
         tickets.put(ticket.getId(), ticket);
         allTickets.add(ticket);
     }

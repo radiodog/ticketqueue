@@ -60,7 +60,7 @@ public class TicketServiceWithFewElementsTest {
     }
 
     @Test(expected = ResponseStatusException.class)
-    public void updateMethodShouldThrowExceptionAfterTryingSetAnotherTicketToSameWindow(){
+    public void updateTicketShouldThrowExceptionAfterTryingSetAnotherTicketToSameWindow(){
         TicketDto ticketDto1 = new TicketDto();
         ticketDto1.setId(1);
         ticketDto1.setTicketTheme(TicketTheme.ISSUE_DOCS);
@@ -75,6 +75,147 @@ public class TicketServiceWithFewElementsTest {
 
         ticketService.updateTicket(ticketDto1);
         ticketService.updateTicket(ticketDto2);
+    }
+
+    @Test(expected = ResponseStatusException.class)
+    public void updateTicketShouldThrowExceptionAfterTryingUpdateFromCallToHold(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.HOLD);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+    }
+
+    @Test(expected = ResponseStatusException.class)
+    public void updateTicketShouldThrowExceptionAfterTryingUpdateFromCallToComplete(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.COMPLETE);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+    }
+
+    @Test
+    public void updateTicketShouldUpdateTicketFromCallToServed(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.SERVED);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+
+        Assert.assertTrue(ticketService.getTicketById(1).getTicketState().equals(TicketState.SERVED));
+    }
+
+    @Test
+    public void updateTicketShouldUpdateTicketFromServedToHold(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.SERVED);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+
+        TicketDto ticketDtoWithHoldState = new TicketDto();
+        ticketDtoWithHoldState.setWindowNumber(1);
+        ticketDtoWithHoldState.setTicketState(TicketState.HOLD);
+        ticketDtoWithHoldState.setId(1);
+        ticketService.updateTicket(ticketDtoWithHoldState);
+
+        Assert.assertTrue(ticketService.getTicketById(1).getTicketState().equals(TicketState.HOLD));
+    }
+
+    @Test
+    public void updateTicketShouldUpdateTicketFromServedToComplete(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.SERVED);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+
+        TicketDto ticketDtoWithHoldState = new TicketDto();
+        ticketDtoWithHoldState.setWindowNumber(1);
+        ticketDtoWithHoldState.setTicketState(TicketState.COMPLETE);
+        ticketDtoWithHoldState.setId(1);
+        ticketService.updateTicket(ticketDtoWithHoldState);
+
+        Assert.assertTrue(ticketService.getTicketById(1).getTicketState().equals(TicketState.COMPLETE));
+    }
+
+    @Test
+    public void updateTicketShouldUpdateTicketFromHoldToCall(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.SERVED);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+
+        TicketDto ticketDtoWithHoldState = new TicketDto();
+        ticketDtoWithHoldState.setWindowNumber(1);
+        ticketDtoWithHoldState.setTicketState(TicketState.HOLD);
+        ticketDtoWithHoldState.setId(1);
+        ticketService.updateTicket(ticketDtoWithHoldState);
+
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        Assert.assertTrue(ticketService.getTicketById(1).getTicketState().equals(TicketState.CALL));
+    }
+
+    @Test
+    public void updateTicketShouldUpdateWindowNumberIfUpdateTicketFromServedToHold(){
+        TicketDto ticketDtoWithCallState = new TicketDto();
+        ticketDtoWithCallState.setWindowNumber(1);
+        ticketDtoWithCallState.setTicketState(TicketState.CALL);
+        ticketDtoWithCallState.setId(1);
+        ticketService.updateTicket(ticketDtoWithCallState);
+
+        TicketDto ticketDtoWithServedState = new TicketDto();
+        ticketDtoWithServedState.setWindowNumber(1);
+        ticketDtoWithServedState.setTicketState(TicketState.SERVED);
+        ticketDtoWithServedState.setId(1);
+        ticketService.updateTicket(ticketDtoWithServedState);
+
+        TicketDto ticketDtoWithHoldState = new TicketDto();
+        ticketDtoWithHoldState.setWindowNumber(1);
+        ticketDtoWithHoldState.setTicketState(TicketState.HOLD);
+        ticketDtoWithHoldState.setId(1);
+        ticketService.updateTicket(ticketDtoWithHoldState);
+
+        Assert.assertTrue(ticketService.getTicketById(1).getWindowNumber() == null);
     }
 
     @Test
